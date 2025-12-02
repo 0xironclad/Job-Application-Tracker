@@ -49,6 +49,10 @@ export class CompanyRepository {
     return this.db.prepare("SELECT * FROM companies ORDER BY name").all() as Company[]
   }
 
+  findByUserId(userId: number): Company[] {
+    return this.db.prepare("SELECT * FROM companies WHERE user_id = ? ORDER BY name").all(userId) as Company[]
+  }
+
   getApplicationCount(id: number): number {
     const result = this.db.prepare("SELECT COUNT(*) as count FROM job_applications WHERE company_id = ?").get(id) as {
       count: number
@@ -56,10 +60,61 @@ export class CompanyRepository {
     return result.count
   }
 
-  search(query: string): Company[] {
+  search(query: string, userId?: number): Company[] {
+    if (userId) {
+      return this.db
+        .prepare("SELECT * FROM companies WHERE user_id = ? AND (name LIKE ? OR industry LIKE ?) ORDER BY name")
+        .all(userId, `%${query}%`, `%${query}%`) as Company[]
+    }
     return this.db
       .prepare("SELECT * FROM companies WHERE name LIKE ? OR industry LIKE ? ORDER BY name")
       .all(`%${query}%`, `%${query}%`) as Company[]
+  }
+
+  belongsToUser(id: number, userId: number): boolean {
+    const result = this.db.prepare("SELECT user_id FROM companies WHERE id = ?").get(id) as { user_id: number } | undefined
+    return result?.user_id === userId
+  }
+
+  findByUserIdWithFilters(userId: number, filters: {
+    search?: string
+    industry?: string
+    size?: string
+    location?: string
+  }, limit: number = 20, offset: number = 0): { data: Company[], total: number } {
+    let whereClause = "WHERE user_id = ?"
+    let params: any[] = [userId]
+
+    if (filters.search) {
+      whereClause += " AND (name LIKE ? OR industry LIKE ? OR description LIKE ?)"
+      params.push(`%${filters.search}%`, `%${filters.search}%`, `%${filters.search}%`)
+    }
+
+    if (filters.industry) {
+      whereClause += " AND industry LIKE ?"
+      params.push(`%${filters.industry}%`)
+    }
+
+    if (filters.size) {
+      whereClause += " AND size LIKE ?"
+      params.push(`%${filters.size}%`)
+    }
+
+    if (filters.location) {
+      whereClause += " AND location LIKE ?"
+      params.push(`%${filters.location}%`)
+    }
+
+    // Get total count
+    const countSql = `SELECT COUNT(*) as count FROM companies ${whereClause}`
+    const totalResult = this.db.prepare(countSql).get(...params) as { count: number }
+    const total = totalResult.count
+
+    // Get paginated data
+    const dataSql = `SELECT * FROM companies ${whereClause} ORDER BY name LIMIT ? OFFSET ?`
+    const data = this.db.prepare(dataSql).all(...params, limit, offset) as Company[]
+
+    return { data, total }
   }
 }
 

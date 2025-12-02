@@ -163,19 +163,21 @@ export async function authenticate(
     }
     
     // No valid authentication found
-    return res.status(401).json({
+    res.status(401).json({
       error: "Unauthorized",
       message: "Authentication required. Please provide a valid JWT token or session.",
       code: "AUTH_REQUIRED"
     })
+    return
     
   } catch (error) {
     console.error("Authentication middleware error:", error)
-    return res.status(500).json({
+    res.status(500).json({
       error: "Internal Server Error",
       message: "An error occurred during authentication",
       code: "AUTH_ERROR"
     })
+    return
   }
 }
 

@@ -57,6 +57,7 @@ async function seed() {
     console.log("🏢 Creating companies...")
     const companies = [
       db.companies.create({
+        user_id: user.id,
         name: "TechCorp Inc.",
         website: "https://techcorp.example.com",
         industry: "Technology",
@@ -65,6 +66,7 @@ async function seed() {
         description: "Leading enterprise software solutions provider"
       }),
       db.companies.create({
+        user_id: user.id,
         name: "StartupHub",
         website: "https://startuphub.io",
         industry: "SaaS",
@@ -73,6 +75,7 @@ async function seed() {
         description: "Fast-growing startup in the productivity space"
       }),
       db.companies.create({
+        user_id: user.id,
         name: "Digital Dynamics",
         website: "https://digitaldynamics.com",
         industry: "Consulting",
@@ -81,6 +84,7 @@ async function seed() {
         description: "Digital transformation and cloud consulting"
       }),
       db.companies.create({
+        user_id: user.id,
         name: "AI Innovations",
         website: "https://aiinnovations.ai",
         industry: "Artificial Intelligence",
@@ -89,6 +93,7 @@ async function seed() {
         description: "Cutting-edge AI/ML research and applications"
       }),
       db.companies.create({
+        user_id: user.id,
         name: "Global Systems Ltd",
         website: "https://globalsystems.com",
         industry: "Finance",

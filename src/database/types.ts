@@ -11,6 +11,7 @@ export interface User {
 
 export interface Company {
   id: number
+  user_id: number
   name: string
   website?: string
   industry?: string
@@ -106,7 +107,7 @@ export type CreateUser = Omit<User, 'id' | 'created_at' | 'updated_at'>
 export type UpdateUser = Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>
 
 export type CreateCompany = Omit<Company, 'id' | 'created_at' | 'updated_at'>
-export type UpdateCompany = Partial<Omit<Company, 'id' | 'created_at' | 'updated_at'>>
+export type UpdateCompany = Partial<Omit<Company, 'id' | 'created_at' | 'updated_at' | 'user_id'>>
 
 export type CreateJobApplication = Omit<JobApplication, 'id' | 'created_at' | 'updated_at'>
 export type UpdateJobApplication = Partial<Omit<JobApplication, 'id' | 'created_at' | 'updated_at' | 'user_id'>>
