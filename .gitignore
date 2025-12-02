@@ -9,3 +9,7 @@ data/
 *.db
 *.db-shm
 *.db-wal
+*.md
+!README.md
+!README.MD
+

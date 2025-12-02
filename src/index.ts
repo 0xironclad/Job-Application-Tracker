@@ -1,6 +1,8 @@
 import dotenv from "dotenv"
 import express from "express"
-import { initializeDatabase, closeDatabase } from "./database/connection"
+import { getDatabase, closeDatabase } from "./database/connection"
+import { MigrationRunner } from "./database/migrations"
+import path from "path"
 
 dotenv.config()
 const app = express()
@@ -11,7 +13,13 @@ app.use(express.json())
 async function startServer() {
   try {
     console.log("Initializing database...")
-    await initializeDatabase()
+    
+    // Run migrations
+    const db = getDatabase()
+    const migrationsDir = path.join(process.cwd(), "migrations")
+    const runner = new MigrationRunner(db, migrationsDir)
+    runner.runAll()
+    
     console.log("Database initialized successfully")
 
     app.get("/", (req, res) => {

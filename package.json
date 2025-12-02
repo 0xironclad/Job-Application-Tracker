@@ -8,7 +8,14 @@
     "dev": "tsx src/index.ts",
     "watch": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "migrate": "tsx src/database/migrate.ts",
+    "migrate:up": "tsx src/database/migrate.ts up",
+    "migrate:down": "tsx src/database/migrate.ts down",
+    "migrate:status": "tsx src/database/migrate.ts status",
+    "migrate:create": "tsx src/database/migrate.ts create",
+    "migrate:reset": "tsx src/database/migrate.ts reset",
+    "migrate:validate": "tsx src/database/migrate.ts validate"
   },
   "keywords": [],
   "author": "",

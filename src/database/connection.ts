@@ -22,6 +22,9 @@ export function getDatabase(): Database.Database {
   return db
 }
 
+// Export for migration system
+export type SQLiteDatabase = Database.Database
+
 export function closeDatabase(): void {
   if (db) {
     db.close()
