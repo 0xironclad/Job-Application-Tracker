@@ -1,15 +1,59 @@
-import dotenv from "dotenv";
-import express from "express";
+import dotenv from "dotenv"
+import express from "express"
+import { initializeDatabase, closeDatabase } from "./database/connection"
 
-dotenv.config();
-const app = express();
+dotenv.config()
+const app = express()
 
-app.get("/", (req, res) => {
-  return res.json({
-    message: "Hello, world!",
-  });
-});
+app.use(express.json())
 
-app.listen(3000, () => {
-  console.log("Server started on port 3000");
-});
+// Initialize database on startup
+async function startServer() {
+  try {
+    console.log("Initializing database...")
+    await initializeDatabase()
+    console.log("Database initialized successfully")
+
+    app.get("/", (req, res) => {
+      return res.json({
+        message: "Job Tracker API",
+        version: "1.0.0",
+        endpoints: {
+          health: "/health",
+          docs: "See README.md for API documentation",
+        },
+      })
+    })
+
+    app.get("/health", (req, res) => {
+      return res.json({
+        status: "healthy",
+        database: "connected",
+        timestamp: new Date().toISOString(),
+      })
+    })
+
+    const PORT = process.env.PORT || 3000
+    app.listen(PORT, () => {
+      console.log(`Server started on port ${PORT}`)
+    })
+
+    // Graceful shutdown
+    process.on("SIGINT", () => {
+      console.log("\nShutting down gracefully...")
+      closeDatabase()
+      process.exit(0)
+    })
+
+    process.on("SIGTERM", () => {
+      console.log("\nShutting down gracefully...")
+      closeDatabase()
+      process.exit(0)
+    })
+  } catch (error) {
+    console.error("Failed to start server:", error)
+    process.exit(1)
+  }
+}
+
+startServer()

@@ -4,3 +4,8 @@ dist/
 .idea/
 .git/
 .env
+solution*.md
+data/
+*.db
+*.db-shm
+*.db-wal
