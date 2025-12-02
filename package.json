@@ -15,7 +15,9 @@
     "migrate:status": "tsx src/database/migrate.ts status",
     "migrate:create": "tsx src/database/migrate.ts create",
     "migrate:reset": "tsx src/database/migrate.ts reset",
-    "migrate:validate": "tsx src/database/migrate.ts validate"
+    "migrate:validate": "tsx src/database/migrate.ts validate",
+    "seed": "tsx src/database/seed.ts",
+    "db:reset": "rm -f data/database.db && npm run migrate && npm run seed"
   },
   "keywords": [],
   "author": "",

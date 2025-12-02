@@ -24,7 +24,13 @@ export class JobApplicationRepository {
   create(application: CreateJobApplication): JobApplication {
     const fields = Object.keys(application)
     const placeholders = fields.map(() => "?").join(", ")
-    const values = fields.map((field) => (application as any)[field])
+    const values = fields.map((field) => {
+      const value = (application as any)[field]
+      if (value instanceof Date) {
+        return value.toISOString().split("T")[0]
+      }
+      return value
+    })
 
     const sql = `INSERT INTO job_applications (${fields.join(", ")}) VALUES (${placeholders})`
     const result = this.db.prepare(sql).run(...values)
