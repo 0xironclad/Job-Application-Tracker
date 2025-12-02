@@ -1,6 +1,37 @@
 import Database from "better-sqlite3"
 import { JobApplication, CreateJobApplication, UpdateJobApplication, ApplicationStatus } from "../types"
 
+export interface ApplicationFilters {
+  userId: number
+  status?: ApplicationStatus
+  companyId?: number
+  dateFrom?: string
+  dateTo?: string
+  salaryMin?: number
+  salaryMax?: number
+  workType?: string
+  location?: string
+}
+
+export interface ApplicationSort {
+  field: 'application_date' | 'created_at' | 'status' | 'position_title' | 'company_id'
+  order: 'ASC' | 'DESC'
+}
+
+export interface PaginationOptions {
+  limit: number
+  offset: number
+}
+
+export interface PaginatedResult<T> {
+  data: T[]
+  total: number
+  limit: number
+  offset: number
+  page: number
+  totalPages: number
+}
+
 export class JobApplicationRepository {
   constructor(private db: Database.Database) {}
 
@@ -114,6 +145,198 @@ export class JobApplicationRepository {
     `
       )
       .all(applicationId) as any[]
+  }
+
+  // Advanced filtering, sorting, and pagination
+  findWithFilters(
+    filters: ApplicationFilters,
+    sort?: ApplicationSort,
+    pagination?: PaginationOptions
+  ): PaginatedResult<JobApplication> {
+    let whereClauses: string[] = ['user_id = ?']
+    let params: any[] = [filters.userId]
+
+    // Build WHERE clauses
+    if (filters.status) {
+      whereClauses.push('status = ?')
+      params.push(filters.status)
+    }
+
+    if (filters.companyId !== undefined && filters.companyId !== null) {
+      whereClauses.push('company_id = ?')
+      params.push(filters.companyId)
+    }
+
+    if (filters.dateFrom) {
+      whereClauses.push('application_date >= ?')
+      params.push(filters.dateFrom)
+    }
+
+    if (filters.dateTo) {
+      whereClauses.push('application_date <= ?')
+      params.push(filters.dateTo)
+    }
+
+    if (filters.salaryMin !== undefined && filters.salaryMin !== null) {
+      whereClauses.push('(salary_max IS NULL OR salary_max >= ?)')
+      params.push(filters.salaryMin)
+    }
+
+    if (filters.salaryMax !== undefined && filters.salaryMax !== null) {
+      whereClauses.push('(salary_min IS NULL OR salary_min <= ?)')
+      params.push(filters.salaryMax)
+    }
+
+    if (filters.workType) {
+      whereClauses.push('work_type = ?')
+      params.push(filters.workType)
+    }
+
+    if (filters.location) {
+      whereClauses.push('LOWER(location) LIKE LOWER(?)')
+      params.push(`%${filters.location}%`)
+    }
+
+    const whereClause = whereClauses.join(' AND ')
+
+    // Count total records
+    const countSql = `SELECT COUNT(*) as total FROM job_applications WHERE ${whereClause}`
+    const totalResult = this.db.prepare(countSql).get(...params) as { total: number }
+    const total = totalResult.total
+
+    // Build main query
+    let sql = `SELECT * FROM job_applications WHERE ${whereClause}`
+
+    // Add sorting
+    if (sort) {
+      sql += ` ORDER BY ${sort.field} ${sort.order}`
+    } else {
+      sql += ' ORDER BY application_date DESC, created_at DESC'
+    }
+
+    // Add pagination
+    const limit = pagination?.limit || 20
+    const offset = pagination?.offset || 0
+    sql += ` LIMIT ? OFFSET ?`
+    params.push(limit, offset)
+
+    const data = this.db.prepare(sql).all(...params) as JobApplication[]
+
+    return {
+      data,
+      total,
+      limit,
+      offset,
+      page: Math.floor(offset / limit) + 1,
+      totalPages: Math.ceil(total / limit)
+    }
+  }
+
+  // Get applications with company data
+  findWithCompanyAndFilters(
+    filters: ApplicationFilters,
+    sort?: ApplicationSort,
+    pagination?: PaginationOptions
+  ): PaginatedResult<any> {
+    let whereClauses: string[] = ['ja.user_id = ?']
+    let params: any[] = [filters.userId]
+
+    // Build WHERE clauses
+    if (filters.status) {
+      whereClauses.push('ja.status = ?')
+      params.push(filters.status)
+    }
+
+    if (filters.companyId !== undefined && filters.companyId !== null) {
+      whereClauses.push('ja.company_id = ?')
+      params.push(filters.companyId)
+    }
+
+    if (filters.dateFrom) {
+      whereClauses.push('ja.application_date >= ?')
+      params.push(filters.dateFrom)
+    }
+
+    if (filters.dateTo) {
+      whereClauses.push('ja.application_date <= ?')
+      params.push(filters.dateTo)
+    }
+
+    if (filters.salaryMin !== undefined && filters.salaryMin !== null) {
+      whereClauses.push('(ja.salary_max IS NULL OR ja.salary_max >= ?)')
+      params.push(filters.salaryMin)
+    }
+
+    if (filters.salaryMax !== undefined && filters.salaryMax !== null) {
+      whereClauses.push('(ja.salary_min IS NULL OR ja.salary_min <= ?)')
+      params.push(filters.salaryMax)
+    }
+
+    if (filters.workType) {
+      whereClauses.push('ja.work_type = ?')
+      params.push(filters.workType)
+    }
+
+    if (filters.location) {
+      whereClauses.push('LOWER(ja.location) LIKE LOWER(?)')
+      params.push(`%${filters.location}%`)
+    }
+
+    const whereClause = whereClauses.join(' AND ')
+
+    // Count total records
+    const countSql = `SELECT COUNT(*) as total FROM job_applications ja WHERE ${whereClause}`
+    const totalResult = this.db.prepare(countSql).get(...params) as { total: number }
+    const total = totalResult.total
+
+    // Build main query with company join
+    let sql = `
+      SELECT 
+        ja.*,
+        c.name as company_name,
+        c.website as company_website,
+        c.industry as company_industry,
+        c.size as company_size,
+        c.location as company_location
+      FROM job_applications ja
+      LEFT JOIN companies c ON ja.company_id = c.id
+      WHERE ${whereClause}
+    `
+
+    // Add sorting
+    if (sort) {
+      const sortField = sort.field === 'application_date' ? 'ja.application_date' :
+                       sort.field === 'created_at' ? 'ja.created_at' :
+                       sort.field === 'status' ? 'ja.status' :
+                       sort.field === 'position_title' ? 'ja.position_title' :
+                       sort.field === 'company_id' ? 'c.name' : 'ja.application_date'
+      sql += ` ORDER BY ${sortField} ${sort.order}`
+    } else {
+      sql += ' ORDER BY ja.application_date DESC, ja.created_at DESC'
+    }
+
+    // Add pagination
+    const limit = pagination?.limit || 20
+    const offset = pagination?.offset || 0
+    sql += ` LIMIT ? OFFSET ?`
+    params.push(limit, offset)
+
+    const data = this.db.prepare(sql).all(...params)
+
+    return {
+      data,
+      total,
+      limit,
+      offset,
+      page: Math.floor(offset / limit) + 1,
+      totalPages: Math.ceil(total / limit)
+    }
+  }
+
+  // Check if company exists
+  companyExists(companyId: number): boolean {
+    const result = this.db.prepare('SELECT COUNT(*) as count FROM companies WHERE id = ?').get(companyId) as { count: number }
+    return result.count > 0
   }
 }
 
