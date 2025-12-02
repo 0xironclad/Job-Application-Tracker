@@ -4,6 +4,7 @@ import { getDatabase, closeDatabase } from "./database/connection";
 import { MigrationRunner } from "./database/migrations";
 import path from "path";
 import applicationsRouter from "./routes/applications";
+import { errorHandler, NotFoundError } from "./middleware/errorHandler";
 
 dotenv.config();
 const app = express();
@@ -28,23 +29,35 @@ async function startServer() {
 
     app.get("/", (req, res) => {
       return res.json({
-        message: "Job Tracker API",
-        version: "1.0.0",
-        endpoints: {
-          health: "/health",
-          applications: "/applications",
-          docs: "See README.md for API documentation",
+        data: {
+          message: "Job Tracker API",
+          version: "1.0.0",
+          endpoints: {
+            health: "/health",
+            applications: "/applications",
+            docs: "See README.md for API documentation",
+          },
         },
       });
     });
 
     app.get("/health", (req, res) => {
       return res.json({
-        status: "healthy",
-        database: "connected",
-        timestamp: new Date().toISOString(),
+        data: {
+          status: "healthy",
+          database: "connected",
+          timestamp: new Date().toISOString(),
+        },
       });
     });
+
+    // 404 handler for unknown routes
+    app.use((req, _res, next) => {
+      next(new NotFoundError(`Route '${req.path}' not found`));
+    });
+
+    // Central error handler (must be last)
+    app.use(errorHandler);
 
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
