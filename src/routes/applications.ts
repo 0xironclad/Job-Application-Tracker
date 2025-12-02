@@ -3,30 +3,19 @@ import { getDatabase } from "../database/repositories"
 import { CreateJobApplication, UpdateJobApplication, ApplicationStatus } from "../database/types"
 import { ApplicationValidator, ValidationResult } from "../validation/applicationValidator"
 import { ApplicationFilters, ApplicationSort, PaginationOptions } from "../database/repositories/JobApplicationRepository"
+import { authenticate, AuthenticatedRequest } from "../middleware/auth"
 
 const router: Router = Router()
 
-// Middleware to extract userId from request (placeholder for actual auth)
-// In a real app, this would come from JWT token or session
-interface AuthenticatedRequest extends Request {
-  userId?: number
-}
+// Apply authentication middleware to all routes
+router.use(authenticate)
 
-// For demonstration purposes, we'll use a hardcoded user ID or get it from headers
-// In production, this would be extracted from authenticated JWT token
+// Helper to ensure user is authenticated
 function getUserId(req: AuthenticatedRequest): number {
-  // Check for user ID in headers (for testing)
-  const userIdHeader = req.headers['user-id']
-  if (userIdHeader && typeof userIdHeader === 'string') {
-    const userId = parseInt(userIdHeader, 10)
-    if (!isNaN(userId)) {
-      return userId
-    }
+  if (!req.userId) {
+    throw new Error("User not authenticated")
   }
-  
-  // In a real application, you would extract this from JWT token
-  // For now, return a default user ID for demonstration
-  return 1
+  return req.userId
 }
 
 // Helper function to format validation errors consistently
