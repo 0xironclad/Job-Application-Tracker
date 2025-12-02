@@ -3,20 +3,12 @@ import { getDatabase } from "../database/repositories"
 import { CreateJobApplication, UpdateJobApplication, ApplicationStatus } from "../database/types"
 import { ApplicationValidator, ValidationResult } from "../validation/applicationValidator"
 import { ApplicationFilters, ApplicationSort, PaginationOptions } from "../database/repositories/JobApplicationRepository"
-import { authenticate, AuthenticatedRequest } from "../middleware/auth"
+import { authenticate, requireAuth, AuthenticatedRequest } from "../middleware/auth"
 
 const router: Router = Router()
 
 // Apply authentication middleware to all routes
-router.use(authenticate)
-
-// Helper to ensure user is authenticated
-function getUserId(req: AuthenticatedRequest): number {
-  if (!req.userId) {
-    throw new Error("User not authenticated")
-  }
-  return req.userId
-}
+router.use(authenticate, requireAuth)
 
 // Helper function to format validation errors consistently
 function formatValidationErrors(validation: ValidationResult) {
@@ -84,7 +76,7 @@ function transformToApiFormat(application: any) {
 // GET /applications/stats - Get application statistics
 router.get('/stats', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = getUserId(req)
+    const userId = req.userId as number
     const db = getDatabase()
     
     const stats = db.jobApplications.getStatsByUser(userId)
@@ -111,7 +103,7 @@ router.get('/stats', (req: AuthenticatedRequest, res: Response) => {
 // GET /applications - Get all applications for authenticated user with filtering, sorting, and pagination
 router.get('/', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = getUserId(req)
+    const userId = req.userId as number
     const db = getDatabase()
     
     // Validate query parameters
@@ -223,7 +215,7 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
 // GET /applications/:id - Get single application by ID
 router.get('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = getUserId(req)
+    const userId = req.userId as number
     const applicationId = parseInt(req.params.id, 10)
     
     if (isNaN(applicationId)) {
@@ -266,7 +258,7 @@ router.get('/:id', (req: AuthenticatedRequest, res: Response) => {
 // POST /applications - Create new application
 router.post('/', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = getUserId(req)
+    const userId = req.userId as number
     const validation = ApplicationValidator.validateCreate(req.body)
     
     if (!validation.isValid) {
@@ -331,7 +323,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
 // PUT /applications/:id - Update existing application (full update)
 router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = getUserId(req)
+    const userId = req.userId as number
     const applicationId = parseInt(req.params.id, 10)
     
     if (isNaN(applicationId)) {
@@ -422,7 +414,7 @@ router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
 // PATCH /applications/:id - Update existing application (partial update)
 router.patch('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = getUserId(req)
+    const userId = req.userId as number
     const applicationId = parseInt(req.params.id, 10)
     
     if (isNaN(applicationId)) {
@@ -527,7 +519,7 @@ router.patch('/:id', (req: AuthenticatedRequest, res: Response) => {
 // DELETE /applications/:id - Delete application
 router.delete('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = getUserId(req)
+    const userId = req.userId as number
     const applicationId = parseInt(req.params.id, 10)
     
     if (isNaN(applicationId)) {
