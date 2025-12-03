@@ -568,5 +568,69 @@ router.delete('/:id', (req: AuthenticatedRequest, res: Response) => {
   }
 })
 
+// GET /applications/:id/contacts - Get all contacts for a specific job application
+router.get("/:id/contacts", async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.userId as number
+  const applicationId = parseInt(req.params.id, 10)
+
+  if (isNaN(applicationId) || applicationId <= 0) {
+    return res.status(400).json({
+      error: "Validation failed",
+      message: "Invalid application ID"
+    })
+  }
+
+  const page = Math.max(1, parseInt(req.query.page as string, 10) || 1)
+  const pageSize = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20))
+  const offset = (page - 1) * pageSize
+  const search = req.query.search as string
+  const role = req.query.role as string
+
+  try {
+    const db = getDatabase()
+
+    const application = db.jobApplications.findById(applicationId)
+    if (!application) {
+      return res.status(404).json({
+        error: "Not found",
+        message: "Application not found"
+      })
+    }
+
+    if (application.user_id !== userId) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You don't have access to this application"
+      })
+    }
+
+    const filters = {
+      jobApplicationId: applicationId,
+      userId,
+      search,
+      role
+    }
+
+    const contacts = db.contacts.findWithApplications(filters, { limit: pageSize, offset })
+    const total = db.contacts.countWithFilters(filters)
+
+    return res.status(200).json({
+      data: contacts,
+      meta: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize)
+      }
+    })
+  } catch (error) {
+    console.error("Database error:", error)
+    return res.status(500).json({
+      error: "Internal server error",
+      message: "Failed to fetch contacts"
+    })
+  }
+})
+
 export default router
 

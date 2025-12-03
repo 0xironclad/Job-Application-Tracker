@@ -3,7 +3,7 @@ import { getDatabase } from "../database/repositories"
 import { CreateCompany, UpdateCompany } from "../database/types"
 import { CompanyValidator, ValidationResult } from "../validation/companyValidator"
 import { authenticate, requireAuth, AuthenticatedRequest } from "../middleware/auth"
-import { asyncHandler, ValidationError, NotFoundError, DatabaseError } from "../middleware/errorHandler"
+import { asyncHandler, ValidationError, NotFoundError, DatabaseError, ConflictError, AuthorizationError } from "../middleware/errorHandler"
 import { ResponseBuilder } from "../utils/response"
 
 const router: Router = Router()
@@ -22,27 +22,92 @@ function formatValidationErrors(validation: ValidationResult) {
 
 // Transform API format to database format
 function transformToDbFormat(data: any, userId: number): CreateCompany {
-  return {
+  const result: CreateCompany = {
     user_id: userId,
-    name: data.name.trim(),
-    website: data.website?.trim() || null,
-    industry: data.industry?.trim() || null,
-    size: data.size?.trim() || null,
-    location: data.location?.trim() || null,
-    description: data.description?.trim() || null
+    name: data.name.trim()
   }
+
+  // Handle optional fields with proper null/undefined handling
+  if (data.website !== undefined && data.website !== null) {
+    const trimmedWebsite = data.website.trim()
+    result.website = trimmedWebsite === '' ? null : trimmedWebsite
+  }
+
+  if (data.industry !== undefined && data.industry !== null) {
+    const trimmedIndustry = data.industry.trim()
+    result.industry = trimmedIndustry === '' ? null : trimmedIndustry
+  }
+
+  if (data.size !== undefined && data.size !== null) {
+    const trimmedSize = data.size.trim()
+    result.size = trimmedSize === '' ? null : trimmedSize
+  }
+
+  if (data.location !== undefined && data.location !== null) {
+    const trimmedLocation = data.location.trim()
+    result.location = trimmedLocation === '' ? null : trimmedLocation
+  }
+
+  if (data.description !== undefined && data.description !== null) {
+    const trimmedDescription = data.description.trim()
+    result.description = trimmedDescription === '' ? null : trimmedDescription
+  }
+
+  return result
 }
 
 // Transform API format to database format for updates
 function transformToDbUpdateFormat(data: any): UpdateCompany {
   const updates: any = {}
   
-  if (data.name !== undefined) updates.name = data.name.trim()
-  if (data.website !== undefined) updates.website = data.website?.trim() || null
-  if (data.industry !== undefined) updates.industry = data.industry?.trim() || null
-  if (data.size !== undefined) updates.size = data.size?.trim() || null
-  if (data.location !== undefined) updates.location = data.location?.trim() || null
-  if (data.description !== undefined) updates.description = data.description?.trim() || null
+  if (data.name !== undefined) {
+    updates.name = data.name.trim()
+  }
+  
+  if (data.website !== undefined) {
+    if (data.website === null) {
+      updates.website = null
+    } else {
+      const trimmedWebsite = data.website.trim()
+      updates.website = trimmedWebsite === '' ? null : trimmedWebsite
+    }
+  }
+  
+  if (data.industry !== undefined) {
+    if (data.industry === null) {
+      updates.industry = null
+    } else {
+      const trimmedIndustry = data.industry.trim()
+      updates.industry = trimmedIndustry === '' ? null : trimmedIndustry
+    }
+  }
+  
+  if (data.size !== undefined) {
+    if (data.size === null) {
+      updates.size = null
+    } else {
+      const trimmedSize = data.size.trim()
+      updates.size = trimmedSize === '' ? null : trimmedSize
+    }
+  }
+  
+  if (data.location !== undefined) {
+    if (data.location === null) {
+      updates.location = null
+    } else {
+      const trimmedLocation = data.location.trim()
+      updates.location = trimmedLocation === '' ? null : trimmedLocation
+    }
+  }
+  
+  if (data.description !== undefined) {
+    if (data.description === null) {
+      updates.description = null
+    } else {
+      const trimmedDescription = data.description.trim()
+      updates.description = trimmedDescription === '' ? null : trimmedDescription
+    }
+  }
   
   return updates
 }
@@ -76,9 +141,19 @@ router.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) =>
   // Build filters
   const filters = {
     search: req.query.search as string,
+    name: req.query.name as string,
     industry: req.query.industry as string,
     size: req.query.size as string,
     location: req.query.location as string
+  }
+  
+  // Build sorting
+  let sort: { field: string, order: 'ASC' | 'DESC' } | undefined
+  if (req.query.sort) {
+    sort = {
+      field: req.query.sort as string,
+      order: (req.query.order as string || 'ASC').toUpperCase() as 'ASC' | 'DESC'
+    }
   }
   
   // Build pagination
@@ -99,7 +174,7 @@ router.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) =>
     page = Math.floor(offset / limit) + 1
   }
   
-  const result = db.companies.findByUserIdWithFilters(userId, filters, limit, offset)
+  const result = db.companies.findByUserIdWithFilters(userId, filters, sort, limit, offset)
   
   // Transform data to API format
   const transformedData = result.data.map(transformToApiFormat)
@@ -110,7 +185,9 @@ router.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) =>
     page,
     pageSize: limit,
     totalPages,
-    total: result.total
+    total: result.total,
+    hasNext: page < totalPages,
+    hasPrev: page > 1
   })
 }))
 
@@ -156,9 +233,9 @@ router.post('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) =
   )
   
   if (duplicate) {
-    throw new ValidationError("Request validation failed", [{
+    throw new ConflictError("Request validation failed", [{
       field: 'name',
-      message: 'A company with this name already exists',
+      message: 'A company with this name already exists in your account',
       value: req.body.name
     }])
   }
@@ -204,9 +281,9 @@ router.put('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response)
     )
     
     if (duplicate) {
-      throw new ValidationError("Request validation failed", [{
+      return ResponseBuilder.error(res, "Conflict", "Request validation failed", 409, "CONFLICT", [{
         field: 'name',
-        message: 'A company with this name already exists',
+        message: 'A company with this name already exists in your account',
         value: req.body.name
       }])
     }
@@ -257,9 +334,9 @@ router.patch('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Respons
     )
     
     if (duplicate) {
-      throw new ValidationError("Request validation failed", [{
+      return ResponseBuilder.error(res, "Conflict", "Request validation failed", 409, "CONFLICT", [{
         field: 'name',
-        message: 'A company with this name already exists',
+        message: 'A company with this name already exists in your account',
         value: req.body.name
       }])
     }
@@ -319,6 +396,57 @@ router.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Respon
   }
   
   return ResponseBuilder.noContent(res)
+}))
+
+// GET /companies/:id/contacts - Get all contacts for a specific company
+router.get("/:id/contacts", asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.userId as number
+  const companyId = parseInt(req.params.id, 10)
+
+  if (isNaN(companyId) || companyId <= 0) {
+    throw new ValidationError("Invalid company ID", [
+      { field: "id", message: "Company ID must be a positive integer", value: req.params.id }
+    ])
+  }
+
+  const page = Math.max(1, parseInt(req.query.page as string, 10) || 1)
+  const pageSize = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20))
+  const offset = (page - 1) * pageSize
+  const search = req.query.search as string
+  const role = req.query.role as string
+
+  const db = getDatabase()
+
+  const company = db.companies.findById(companyId)
+  if (!company) {
+    throw new NotFoundError("Company not found")
+  }
+
+  if (company.user_id !== userId) {
+    throw new AuthorizationError("You don't have access to this company")
+  }
+
+  try {
+    const filters = {
+      companyId,
+      userId,
+      search,
+      role
+    }
+
+    const contacts = db.contacts.findWithApplications(filters, { limit: pageSize, offset })
+    const total = db.contacts.countWithFilters(filters)
+    const totalPages = Math.ceil(total / pageSize)
+
+    return ResponseBuilder.ok(res, contacts, {
+      page,
+      pageSize,
+      total,
+      totalPages
+    })
+  } catch (error) {
+    throw new DatabaseError("Failed to fetch contacts")
+  }
 }))
 
 export default router

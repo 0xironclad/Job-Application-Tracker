@@ -5,6 +5,7 @@ import { MigrationRunner } from "./database/migrations";
 import path from "path";
 import applicationsRouter from "./routes/applications";
 import companiesRouter from "./routes/companies";
+import contactsRouter from "./routes/contacts";
 import { errorHandler, NotFoundError } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -28,6 +29,7 @@ async function startServer() {
     // Routes
     app.use("/applications", applicationsRouter);
     app.use("/companies", companiesRouter);
+    app.use("/contacts", contactsRouter);
 
     app.get("/", (req, res) => {
       return res.json({
@@ -38,6 +40,7 @@ async function startServer() {
             health: "/health",
             applications: "/applications",
             companies: "/companies",
+            contacts: "/contacts",
             docs: "See README.md for API documentation",
           },
         },
