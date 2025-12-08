@@ -78,16 +78,25 @@ export class CompanyRepository {
 
   findByUserIdWithFilters(userId: number, filters: {
     search?: string
+    name?: string
     industry?: string
     size?: string
     location?: string
-  }, limit: number = 20, offset: number = 0): { data: Company[], total: number } {
+  }, sort?: { field: string, order: 'ASC' | 'DESC' }, limit: number = 20, offset: number = 0): { data: Company[], total: number } {
     let whereClause = "WHERE user_id = ?"
     let params: any[] = [userId]
 
+    // General search across multiple fields
     if (filters.search) {
-      whereClause += " AND (name LIKE ? OR industry LIKE ? OR description LIKE ?)"
-      params.push(`%${filters.search}%`, `%${filters.search}%`, `%${filters.search}%`)
+      whereClause += " AND (name LIKE ? OR industry LIKE ? OR description LIKE ? OR location LIKE ?)"
+      const searchTerm = `%${filters.search}%`
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm)
+    }
+
+    // Specific field filters
+    if (filters.name) {
+      whereClause += " AND name LIKE ?"
+      params.push(`%${filters.name}%`)
     }
 
     if (filters.industry) {
@@ -105,13 +114,30 @@ export class CompanyRepository {
       params.push(`%${filters.location}%`)
     }
 
+    // Build ORDER BY clause
+    let orderClause = "ORDER BY name ASC" // default sorting
+    if (sort && sort.field) {
+      // Map API field names to database column names
+      const fieldMapping: Record<string, string> = {
+        'name': 'name',
+        'industry': 'industry',
+        'size': 'size',
+        'location': 'location',
+        'createdAt': 'created_at',
+        'updatedAt': 'updated_at'
+      }
+      
+      const dbField = fieldMapping[sort.field] || 'name'
+      orderClause = `ORDER BY ${dbField} ${sort.order}`
+    }
+
     // Get total count
     const countSql = `SELECT COUNT(*) as count FROM companies ${whereClause}`
     const totalResult = this.db.prepare(countSql).get(...params) as { count: number }
     const total = totalResult.count
 
     // Get paginated data
-    const dataSql = `SELECT * FROM companies ${whereClause} ORDER BY name LIMIT ? OFFSET ?`
+    const dataSql = `SELECT * FROM companies ${whereClause} ${orderClause} LIMIT ? OFFSET ?`
     const data = this.db.prepare(dataSql).all(...params, limit, offset) as Company[]
 
     return { data, total }

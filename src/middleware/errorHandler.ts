@@ -56,6 +56,12 @@ export class DatabaseError extends AppError {
   }
 }
 
+export class ConflictError extends AppError {
+  constructor(message = "Conflict", errors?: FieldError[]) {
+    super(message, 409, "CONFLICT", errors)
+  }
+}
+
 function normalizeStatus(error: unknown): number {
   if (error instanceof AppError) {
     return error.statusCode
@@ -89,6 +95,7 @@ function normalizeCode(error: unknown, statusCode: number): string | undefined {
   if (statusCode === 401) return "UNAUTHORIZED"
   if (statusCode === 403) return "FORBIDDEN"
   if (statusCode === 404) return "NOT_FOUND"
+  if (statusCode === 409) return "CONFLICT"
 
   return statusCode >= 500 ? "INTERNAL_ERROR" : undefined
 }
