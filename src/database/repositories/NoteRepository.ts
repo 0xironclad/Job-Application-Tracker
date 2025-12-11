@@ -11,8 +11,73 @@ export class NoteRepository {
 
   findByJobApplication(jobApplicationId: number): Note[] {
     return this.db
-      .prepare("SELECT * FROM notes WHERE job_application_id = ? ORDER BY created_at DESC")
+      .prepare("SELECT * FROM notes WHERE job_application_id = ? ORDER BY created_at ASC")
       .all(jobApplicationId) as Note[]
+  }
+
+  findByIdAndUser(noteId: number, userId: number): Note | null {
+    const row = this.db
+      .prepare(
+        `SELECT n.* FROM notes n
+         INNER JOIN job_applications ja ON n.job_application_id = ja.id
+         WHERE n.id = ? AND ja.user_id = ?`
+      )
+      .get(noteId, userId) as Note | undefined
+    return row || null
+  }
+
+  findByApplicationAndUser(
+    applicationId: number,
+    userId: number,
+    options?: { limit: number; offset: number }
+  ): Note[] {
+    let sql = `SELECT n.* FROM notes n
+         INNER JOIN job_applications ja ON n.job_application_id = ja.id
+         WHERE n.job_application_id = ? AND ja.user_id = ?
+         ORDER BY n.created_at ASC`
+
+    if (options) {
+      sql += ` LIMIT ? OFFSET ?`
+      return this.db.prepare(sql).all(applicationId, userId, options.limit, options.offset) as Note[]
+    }
+
+    return this.db.prepare(sql).all(applicationId, userId) as Note[]
+  }
+
+  countByApplicationAndUser(applicationId: number, userId: number): number {
+    const result = this.db
+      .prepare(
+        `SELECT COUNT(*) as count FROM notes n
+         INNER JOIN job_applications ja ON n.job_application_id = ja.id
+         WHERE n.job_application_id = ? AND ja.user_id = ?`
+      )
+      .get(applicationId, userId) as { count: number }
+    return result.count
+  }
+
+  findByUser(userId: number, options?: { limit: number; offset: number }): Note[] {
+    let sql = `SELECT n.* FROM notes n
+         INNER JOIN job_applications ja ON n.job_application_id = ja.id
+         WHERE ja.user_id = ?
+         ORDER BY n.created_at DESC`
+
+    if (options) {
+      sql += ` LIMIT ? OFFSET ?`
+      return this.db.prepare(sql).all(userId, options.limit, options.offset) as Note[]
+    }
+
+    return this.db.prepare(sql).all(userId) as Note[]
+  }
+
+  countByUser(userId: number): number {
+    const result = this.db
+      .prepare(
+        `SELECT COUNT(*) as count FROM notes n
+         INNER JOIN job_applications ja ON n.job_application_id = ja.id
+         WHERE ja.user_id = ?`
+      )
+      .get(userId) as { count: number }
+    return result.count
   }
 
   create(note: CreateNote): Note {

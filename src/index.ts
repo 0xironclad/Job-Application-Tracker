@@ -6,6 +6,7 @@ import path from "path";
 import applicationsRouter from "./routes/applications";
 import companiesRouter from "./routes/companies";
 import contactsRouter from "./routes/contacts";
+import notesRouter from "./routes/notes";
 import { errorHandler, NotFoundError } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -30,6 +31,7 @@ async function startServer() {
     app.use("/applications", applicationsRouter);
     app.use("/companies", companiesRouter);
     app.use("/contacts", contactsRouter);
+    app.use("/notes", notesRouter);
 
     app.get("/", (req, res) => {
       return res.json({
@@ -41,6 +43,7 @@ async function startServer() {
             applications: "/applications",
             companies: "/companies",
             contacts: "/contacts",
+            notes: "/notes",
             docs: "See README.md for API documentation",
           },
         },
